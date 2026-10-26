@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  release:
+    types: [published]   # publishing a release on GitHub builds the downloads and attaches them
+
+permissions:
+  contents: write   # release downloads, and the ci-results branch with the real model's output
+
+jobs:
+  build:
+    name: Build + self-test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64 }
+          - { os: macos-latest,   rid: osx-arm64 }
+          - { os: ubuntu-latest,  rid: linux-x64 }
+    runs-on: ${{ matrix.os }}
+    defaults: { run: { shell: bash } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: 8.0.x }
+      - name: Build
+        run: dotnet build src/Marigold -c Release
+      - name: Self-test (ghost check, photo handling, storage, ofrenda page)
+        run: dotnet run --project src/Marigold -c Release --no-build -- selftest
+      - name: Publish single-file app
+        run: dotnet publish src/Marigold -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -o out/${{ matrix.rid }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marigold-${{ matrix.rid }}
+          path: out/${{ matrix.rid }}/marigold*
+
+  real-model:
+    name: Build an ofrenda with real Gemma 3 (local, via Ollama) in a real browser
+    if: github.event_name != 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      MODEL: gemma3:4b
+      OUT: ${{ github.workspace }}/ci-out
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: 8.0.x }
+      - name: Install Ollama and pull Gemma 3 (4B, vision)
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          (ollama serve > /tmp/ollama.log 2>&1 &) || true
+          for i in $(seq 1 30); do curl -sf http://localhost:11434/api/tags >/dev/null && break; sleep 2; done
+          ollama pull "$MODEL"
+      - name: Fetch public-domain photos (Wikimedia Commons, licence checked)
+        run: python3 samples/fetch_photos.py "$RUNNER_TEMP/photos"
+      - name: Install Playwright (browser test)
+        run: |
+          python3 -m pip install --quiet playwright
+          python3 -m playwright install --with-deps chromium > /dev/null
+      - name: Build
+        run: dotnet build src/Marigold -c Release
+      - name: End-to-end in a browser with the real model
+        run: |
+          (dotnet src/Marigold/bin/Release/net8.0/marigold.dll --no-browser --model "$MODEL" --data "$RUNNER_TEMP/app-data" > /tmp/marigold.log 2>&1 &)
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:5180/api/status >/dev/null && break; sleep 1; done
+          python3 samples/e2e.py http://127.0.0.1:5180 "$RUNNER_TEMP/photos" "$OUT"
+      - name: Command-line ofrenda (same model, fresh data)
+        if: always()
+        run: dotnet run --project src/Marigold -c Release --no-build -- demo "$GITHUB_WORKSPACE/samples/person.json" "$RUNNER_TEMP/photos" --model "$MODEL" --out "$OUT/demo-ofrenda.html" --json "$OUT/demo.json" --data "$RUNNER_TEMP/demo-data"
+      - name: Results as annotations
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os
+          def note(title, msg): print(f"::notice title={title}::" + msg.replace("%", "%25").replace("\r", "").replace("\n", "%0A"))
+          out = os.environ["OUT"]
+          for name in ("e2e.json", "demo.json"):
+              p = os.path.join(out, name)
+              if not os.path.exists(p): continue
+              r = json.load(open(p, encoding="utf-8"))
+              if name == "demo.json":
+                  for ph in r["photos"]:
+                      note(f"Photo {ph['file']}", f"caption: {ph['caption']}\ndescription: {ph['description']}\nera: {ph['era']}  ({ph['seconds']}s) {ph.get('error') or ''}")
+                  rem = r["remembrance"]
+                  note("CLI remembrance", f"{rem['title']}\n\n{rem['text']}\n\n{rem['words']} words, {rem['seconds']}s, ghosts: {rem['ghosts'] or 'none'}")
+              else:
+                  note("Browser test", f"photos described in {r['describeSeconds']}s, written in {r['writeSeconds']}s, ghosts: {r['ghosts'] or 'none'}\n\n{r['remembrance']}")
+          PY
+      - name: Publish results to the ci-results branch (screenshots, ofrenda, model output)
+        if: always()
+        run: |
+          mkdir -p "$OUT/photos" && cp "$RUNNER_TEMP"/photos/* "$OUT/photos/" 2>/dev/null || true
+          cp /tmp/marigold.log "$OUT/" 2>/dev/null || true
+          cd "$OUT"
+          git init -q -b ci-results
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -qm "Real-model results for ${GITHUB_SHA::7}"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-results
+
+  release:
+    name: Attach downloads to the GitHub release
+    if: github.event_name == 'release'
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dl }
+      - name: Zip each platform
+        run: |
+          cd dl
+          for d in marigold-*; do (cd "$d" && zip -q -9 "../$d.zip" marigold*); done
+          ls -la
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dl/marigold-*.zip

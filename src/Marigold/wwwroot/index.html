@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marigold — a private ofrenda</title>
+<style>
+  :root {
+    --bg: #faf5ec; --card: #fffdf8; --ink: #2b2118; --muted: #74685a; --line: #eadfcb;
+    --marigold: #d97706; --marigold-soft: #fdf0d8; --plum: #5b2a6e; --plum-soft: #f1e7f4;
+    --ghost: #6b4bb8; --ghost-soft: #efe9fb; --err: #a8322a; --err-soft: #f8dfdc; --ok: #3f6b35; --ok-soft: #e4eedc;
+    --focus: #1d5fbf; --r: 14px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1b1426; --card: #241b31; --ink: #f3ead9; --muted: #b7a991; --line: #3a2d4a; --marigold-soft: #3b2a14; --plum: #d7b4e6; --plum-soft: #34233f;
+            --ghost: #c4b2f3; --ghost-soft: #2f2645; --err-soft: #46211f; --err: #f1a39b; --ok-soft: #233421; --ok: #a7d49a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; line-height: 1.5; }
+  header { display: flex; gap: 14px; align-items: center; padding: 14px 28px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .brand { font: 600 23px/1.1 Georgia, "Palatino Linotype", serif; color: var(--plum); display: flex; gap: 8px; align-items: center; }
+  .tag { color: var(--muted); font-size: 14px; }
+  .pill { margin-left: auto; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.bad { background: var(--err-soft); color: var(--err); }
+  .layout { max-width: 1180px; margin: 0 auto; padding: 22px 28px 60px; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); padding: 16px; } header { padding: 12px 16px; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 18px 20px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 4px; font: 600 19px/1.3 Georgia, "Palatino Linotype", serif; color: var(--plum); }
+  .card .sub { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+  .people { list-style: none; margin: 0 0 12px; padding: 0; }
+  .people button { width: 100%; text-align: left; border: 1px solid transparent; background: none; padding: 9px 10px; border-radius: 10px; display: block; }
+  .people button:hover { background: var(--marigold-soft); }
+  .people button[aria-current=true] { background: var(--marigold-soft); border-color: #f2c983; }
+  .people .n { font-weight: 600; display: block; } .people .y { color: var(--muted); font-size: 13px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 560px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+  label.f { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--muted); }
+  input[type=text], select, textarea { font: inherit; color: inherit; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; background: var(--bg); width: 100%; min-width: 0; }
+  textarea { resize: vertical; min-height: 130px; line-height: 1.55; }
+  textarea.cap { min-height: 0; resize: none; font-size: 14px; padding: 6px 9px; }
+  a.btn { display: inline-block; text-decoration: none; }
+  button, a.btn { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 10px; padding: 9px 15px; cursor: pointer; }
+  button:hover, a.btn:hover { border-color: #d8c6a4; }
+  button.primary, a.btn.primary { background: var(--marigold); border-color: var(--marigold); color: #fff; font-weight: 600; }
+  button.primary:disabled { opacity: .55; cursor: default; }
+  button.link { border: 0; background: none; padding: 2px 4px; color: var(--muted); text-decoration: underline; font-size: 13px; }
+  button.danger { color: var(--err); }
+  :is(button, input, select, textarea, a):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .hint { color: var(--muted); font-size: 13px; }
+  .banner { border-radius: var(--r); padding: 12px 16px; margin-bottom: 14px; display: none; }
+  .banner.err { display: block; background: var(--err-soft); color: var(--err); }
+  .drop { border: 2px dashed #e4c48f; border-radius: var(--r); padding: 18px; text-align: center; color: var(--muted); background: var(--marigold-soft); }
+  .drop.over { border-color: var(--marigold); }
+  .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-top: 14px; }
+  .ph { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; }
+  .ph img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: #e9dfcc; }
+  .ph .body { padding: 9px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .ph .desc { font-size: 12.5px; color: var(--muted); }
+  .status { font-size: 12px; font-weight: 600; }
+  .status.wait { color: var(--marigold); } .status.err { color: var(--err); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { background: var(--marigold-soft); border: 1px solid #f2c983; border-radius: 999px; padding: 3px 11px; font-size: 13px; }
+  .ghosts { background: var(--ghost-soft); border-radius: 12px; padding: 12px 14px; margin-top: 12px; color: var(--ink); }
+  .ghosts strong { color: var(--ghost); }
+  .ghosts .chip { background: var(--card); border-color: var(--ghost); color: var(--ghost); }
+  .preview { margin-top: 10px; padding: 12px 14px; border-left: 3px solid var(--ghost); background: var(--card); white-space: pre-wrap; font-family: Georgia, serif; }
+  mark { background: var(--ghost-soft); color: var(--ghost); outline: 1px dashed var(--ghost); border-radius: 3px; padding: 0 2px; }
+  .clean { background: var(--ok-soft); color: var(--ok); border-radius: 12px; padding: 10px 14px; margin-top: 12px; }
+  .empty { text-align: center; padding: 40px 20px; }
+  .empty h2 { font: 600 26px/1.2 Georgia, serif; color: var(--plum); margin: 0 0 8px; }
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: s 1s linear infinite; vertical-align: -2px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 0 16px 30px; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span aria-hidden="true">🌼</span> Marigold</div>
+  <div class="tag">A private ofrenda for the people you remember</div>
+  <div id="status" class="pill" role="status">Checking…</div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="card">
+      <h2>Remembering</h2>
+      <ul class="people" id="people"></ul>
+      <form id="addForm" class="row">
+        <label class="visually-hidden" for="newName">Name</label>
+        <input type="text" id="newName" placeholder="Add someone's name" maxlength="80" required>
+        <button class="primary" type="submit">Add</button>
+      </form>
+    </div>
+    <p class="hint">Photos and memories stay in a folder on this computer. The model runs here too. Nothing is uploaded.</p>
+  </aside>
+
+  <main id="main">
+    <div id="banner" class="banner" role="alert"></div>
+    <div id="editor"></div>
+  </main>
+</div>
+<footer>Marigold runs a local open-weight model through Ollama. Your ofrenda is one HTML file you can keep, print or share.</footer>
+
+<script>
+"use strict";
+const H = { "X-Marigold": "1" };
+let people = [], current = null, languages = ["English"], pollTimer = null, saveTimer = null;
+
+function el(tag, props = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+}
+async function api(method, url, body, raw) {
+  const opts = { method, headers: { ...H } };
+  if (raw) { opts.body = body; opts.headers["Content-Type"] = raw; }
+  else if (body !== undefined) { opts.body = JSON.stringify(body); opts.headers["Content-Type"] = "application/json"; }
+  const r = await fetch(url, opts);
+  const text = await r.text();
+  let data = null; try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  if (!r.ok) throw new Error((data && data.error) || (typeof data === "string" && data) || ("Request failed (" + r.status + ")"));
+  return data;
+}
+function banner(msg) { const b = document.getElementById("banner"); b.textContent = msg || ""; b.className = msg ? "banner err" : "banner"; }
+
+async function loadStatus() {
+  const s = document.getElementById("status");
+  try {
+    const st = await api("GET", "/api/status");
+    languages = st.languages || languages;
+    s.textContent = st.ready ? "● " + st.model + " ready (on this computer)" : st.problem;
+    s.className = "pill " + (st.ready ? "ok" : "bad");
+  } catch { s.textContent = "Marigold isn't responding"; s.className = "pill bad"; }
+}
+
+async function loadPeople(selectId) {
+  people = await api("GET", "/api/people");
+  const ul = document.getElementById("people"); ul.replaceChildren();
+  for (const p of people) {
+    ul.append(el("li", {}, el("button", { type: "button", "aria-current": current && current.id === p.id ? "true" : "false", onclick: () => open(p.id) },
+      el("span", { class: "n", text: p.name }), el("span", { class: "y", text: [p.years, p.photos ? p.photos + " photo" + (p.photos === 1 ? "" : "s") : ""].filter(Boolean).join(" · ") }))));
+  }
+  if (selectId) await open(selectId);
+  else if (!current) people.length ? await open(people[0].id) : renderEmpty();
+}
+
+function renderEmpty() {
+  current = null;
+  document.getElementById("editor").replaceChildren(el("div", { class: "card empty" },
+    el("h2", { text: "Who would you like to remember?" }),
+    el("p", { class: "hint", text: "Add their name on the left. Then add a few old photos and write down what you remember: what they always said, what the kitchen smelled like, the song they hummed. Gemma looks at the photos and helps you write a short remembrance, using only what you gave it." })));
+}
+
+async function open(id) {
+  banner("");
+  current = await api("GET", "/api/people/" + id);
+  for (const b of document.querySelectorAll(".people button")) b.setAttribute("aria-current", "false");
+  const idx = people.findIndex(p => p.id === id);
+  const btn = document.querySelectorAll(".people button")[idx]; if (btn) btn.setAttribute("aria-current", "true");
+  renderEditor();
+  schedulePoll();
+}
+
+// ── Editor ────────────────────────────────────────────────────────────────
+function renderEditor() {
+  const p = current;
+  const name = el("input", { type: "text", id: "fName", maxlength: 80, value: p.name });
+  const years = el("input", { type: "text", id: "fYears", maxlength: 40, value: p.years, placeholder: "e.g. 1931 – 2019" });
+  const rel = el("input", { type: "text", id: "fRel", maxlength: 80, value: p.relation, placeholder: "e.g. my grandmother" });
+  const lang = el("select", { id: "fLang" }, ...languages.map(l => el("option", { value: l, text: l, selected: l === p.language })));
+  const mem = el("textarea", { id: "fMem", maxlength: 4000, placeholder: "What did they always say? What did they cook, sing, fix, grow? A story the family still tells…" });
+  mem.value = p.memories || "";
+  const off = el("input", { type: "text", id: "fOff", value: (p.offerings || []).join(", "), placeholder: "e.g. pan de muerto, café de olla, boleros on the radio" });
+  const chips = el("div", { class: "chips", id: "offChips" });
+  const paintChips = () => chips.replaceChildren(...off.value.split(",").map(s => s.trim()).filter(Boolean).map(s => el("span", { class: "chip", text: "🌼 " + s })));
+  paintChips();
+  for (const i of [name, years, rel, lang, mem, off]) { i.addEventListener("input", () => { if (i === off) paintChips(); queueSave(); }); i.addEventListener("change", saveNow); }
+
+  const file = el("input", { type: "file", accept: "image/jpeg,image/png", multiple: true, class: "visually-hidden", id: "file" });
+  file.addEventListener("change", () => upload([...file.files]).finally(() => file.value = ""));
+  const drop = el("div", { class: "drop" },
+    el("div", { text: "Drop old photos here, or " }, el("button", { type: "button", onclick: () => file.click(), text: "choose photos" })),
+    el("div", { class: "hint", text: "JPEG or PNG, up to 12. They're copied into Marigold's folder on this computer." }), file);
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); upload([...e.dataTransfer.files]); });
+
+  document.getElementById("editor").replaceChildren(
+    el("section", { class: "card" }, el("h2", { text: "Who they were" }),
+      el("div", { class: "grid2" },
+        el("label", { class: "f" }, "Name", name), el("label", { class: "f" }, "Years", years),
+        el("label", { class: "f" }, "Who they were to you", rel), el("label", { class: "f" }, "Write the remembrance in", lang))),
+    el("section", { class: "card" }, el("h2", { text: "Photos" }),
+      el("p", { class: "sub", text: "Gemma looks at each photo and suggests a caption. It describes only what it can see, never names." }),
+      drop, el("div", { class: "photos", id: "photos" })),
+    el("section", { class: "card" }, el("h2", { text: "What you remember" }),
+      el("p", { class: "sub", text: "This is the only source of facts. The remembrance won't use anything you don't write here." }),
+      el("label", { class: "f" }, "Memories", mem),
+      el("label", { class: "f", style: "margin-top:12px" }, "Their favourite things, for the ofrenda (separate with commas)", off), chips,
+      el("div", { class: "hint", id: "saved", style: "margin-top:8px" })),
+    el("section", { class: "card", id: "words" }),
+    el("section", { class: "card" }, el("h2", { text: "The ofrenda" }),
+      el("p", { class: "sub", text: "One page with their photos, your words and their favourite things. It's a single file: it works offline, prints to PDF, and doesn't need Marigold to open." }),
+      el("div", { class: "row" },
+        el("a", { class: "btn primary", href: "/ofrenda/" + p.id, target: "_blank", rel: "noopener", text: "Open the ofrenda" }),
+        el("a", { class: "btn", href: "/ofrenda/" + p.id + "?download=1", text: "Download (.html)" }),
+        el("button", { type: "button", class: "link danger", style: "margin-left:auto", text: "Remove " + p.name + " from Marigold", onclick: remove }))));
+  renderPhotos();
+  renderWords();
+}
+
+function collect() {
+  return {
+    name: document.getElementById("fName").value, years: document.getElementById("fYears").value,
+    relation: document.getElementById("fRel").value, memories: document.getElementById("fMem").value,
+    offerings: document.getElementById("fOff").value.split(",").map(s => s.trim()).filter(Boolean),
+    language: document.getElementById("fLang").value,
+  };
+}
+function queueSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 900); document.getElementById("saved").textContent = "…"; }
+async function saveNow() {
+  clearTimeout(saveTimer);
+  if (!current) return;
+  try {
+    const p = await api("PUT", "/api/people/" + current.id, collect());
+    const nameChanged = p.name !== current.name;
+    current.name = p.name; current.years = p.years; current.relation = p.relation; current.memories = p.memories;
+    current.offerings = p.offerings; current.language = p.language; current.remembrance = p.remembrance;
+    document.getElementById("saved").textContent = "Saved on this computer.";
+    renderGhosts();
+    if (nameChanged) loadPeople();
+  } catch (e) { banner(e.message); }
+}
+
+// ── Photos ────────────────────────────────────────────────────────────────
+async function toJpeg(f) {
+  // Shrink big scans in the browser before saving: smaller files, faster for the model. No upload: this is localhost.
+  const bmp = await createImageBitmap(f).catch(() => { throw new Error(f.name + ": only JPEG and PNG photos are supported."); });
+  const max = 1600, s = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas"); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+  return await new Promise(res => c.toBlob(res, "image/jpeg", 0.9));
+}
+async function upload(files) {
+  banner("");
+  for (const f of files) {
+    try { await api("POST", "/api/people/" + current.id + "/photos", await toJpeg(f), "image/jpeg"); }
+    catch (e) { banner(e.message); }
+  }
+  current = await api("GET", "/api/people/" + current.id);
+  renderPhotos(); loadPeople(); schedulePoll();
+}
+function renderPhotos() {
+  const grid = document.getElementById("photos"); if (!grid) return;
+  grid.replaceChildren(...current.photos.map(ph => {
+    const cap = el("textarea", { class: "cap", rows: 3, maxlength: 120, "aria-label": "Caption", placeholder: ph.status === "waiting" ? "Gemma is looking…" : "Caption" }); cap.value = ph.caption || "";
+    cap.addEventListener("change", async () => { try { await api("PUT", `/api/people/${current.id}/photos/${ph.id}`, { caption: cap.value }); ph.caption = cap.value; ph.captionEdited = true; const f = await api("GET", "/api/people/" + current.id); current.remembrance = f.remembrance; renderGhosts(); } catch (e) { banner(e.message); } });
+    const status = ph.status === "waiting" ? el("span", { class: "status wait" }, el("span", { class: "spin", "aria-hidden": "true" }), " Gemma is looking at this photo…")
+      : ph.status === "error" ? el("span", { class: "status err", text: "✖ " + (ph.error || "Couldn't read this photo") }) : null;
+    return el("figure", { class: "ph", style: "margin:0", "data-id": ph.id, "data-status": ph.status },
+      el("img", { src: `/api/photo/${current.id}/${ph.id}`, alt: ph.description || ph.caption || "Photo", loading: "lazy" }),
+      el("div", { class: "body" }, status, cap,
+        ph.description ? el("div", { class: "desc", text: "Gemma saw: " + ph.description + (ph.era ? " (looks like the " + ph.era + ")" : "") }) : null,
+        el("div", { class: "row" },
+          ph.status === "error" ? el("button", { type: "button", class: "link", text: "Try again", onclick: async () => { await api("POST", `/api/people/${current.id}/photos/${ph.id}/describe`); await refresh(); } }) : null,
+          el("button", { type: "button", class: "link", text: "Remove", onclick: async () => { await api("DELETE", `/api/people/${current.id}/photos/${ph.id}`); await refresh(); loadPeople(); } }))));
+  }));
+}
+async function refresh() { current = await api("GET", "/api/people/" + current.id); renderPhotos(); schedulePoll(); }
+function schedulePoll() {
+  clearTimeout(pollTimer);
+  if (!current || !current.photos.some(p => p.status === "waiting")) return;
+  pollTimer = setTimeout(async () => {
+    const id = current.id;
+    try {
+      const fresh = await api("GET", "/api/people/" + id);
+      if (!current || current.id !== id) return;
+      // Only repaint photos whose status changed, so a caption you're typing isn't wiped.
+      const changed = fresh.photos.some(f => { const o = current.photos.find(x => x.id === f.id); return !o || o.status !== f.status; });
+      current.photos = fresh.photos;
+      if (changed) renderPhotos();
+    } catch { }
+    schedulePoll();
+  }, 2500);
+}
+
+// ── Remembrance ───────────────────────────────────────────────────────────
+function renderWords() {
+  const box = document.getElementById("words"); if (!box) return;
+  const r = current.remembrance;
+  const go = el("button", { class: "primary", type: "button", id: "writeBtn", text: r ? "Write it again" : "Write a remembrance with Gemma", onclick: write });
+  const parts = [el("h2", { text: "A remembrance" }),
+    el("p", { class: "sub", text: "Gemma writes a short piece to read aloud or place on the ofrenda, using only your memories and what's in the photos. Then the ghost check looks for anything it made up." }),
+    el("div", { class: "row" }, go, el("span", { class: "hint", id: "writeMsg" }))];
+  if (r) {
+    const title = el("input", { type: "text", id: "rTitle", value: r.title, maxlength: 120, "aria-label": "Title" });
+    const text = el("textarea", { id: "rText", "aria-label": "Remembrance", style: "min-height:200px" }); text.value = r.text;
+    const save = el("button", { type: "button", text: "Save my edits", onclick: async () => {
+      try { current = await api("PUT", `/api/people/${current.id}/remembrance`, { title: title.value, text: text.value }); renderGhosts(); document.getElementById("rSaved").textContent = "Saved."; }
+      catch (e) { banner(e.message); } } });
+    parts.push(el("div", { style: "margin-top:14px; display:grid; gap:10px" }, title, text),
+      el("div", { class: "row", style: "margin-top:8px" }, save, el("span", { class: "hint", id: "rSaved",
+        text: r.edited ? "Edited by you." : (r.model ? `Written by ${r.model} in ${r.seconds}s, on this computer.` : "") })),
+      el("div", { id: "ghosts" }));
+  }
+  box.replaceChildren(...parts);
+  renderGhosts();
+}
+function renderGhosts() {
+  const g = document.getElementById("ghosts"); const r = current.remembrance; if (!g || !r) return;
+  if (!r.ghosts.length) { g.replaceChildren(el("div", { class: "clean", text: "✓ Ghost check: every name, place, number and date in this text comes from what you wrote or what's in the photos." })); return; }
+  // Highlight possible inventions in a read-only copy of the text (built with text nodes: nothing is parsed as HTML).
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const rx = new RegExp("(?<![\\p{L}\\p{N}])(" + r.ghosts.map(esc).join("|") + ")(?![\\p{L}\\p{N}])", "gu");
+  const pre = el("div", { class: "preview" });
+  const full = (r.title ? r.title + "\n\n" : "") + r.text;
+  let last = 0;
+  for (const m of full.matchAll(rx)) { pre.append(full.slice(last, m.index), el("mark", { text: m[0] })); last = m.index + m[0].length; }
+  pre.append(full.slice(last));
+  g.replaceChildren(el("div", { class: "ghosts" },
+    el("div", {}, el("strong", { text: "👻 Ghost check: " }), (r.ghosts.length === 1 ? "1 detail isn't" : r.ghosts.length + " details aren't") + " in anything you wrote. The model may have made " + (r.ghosts.length === 1 ? "it" : "them") + " up:"),
+    el("div", { class: "chips" }, ...r.ghosts.map(x => el("span", { class: "chip", text: x }))),
+    el("div", { class: "hint", style: "margin-top:8px", text: "If it's true, add it to your memories and the warning goes away. If not, edit it out above and save. Or click Write it again." }),
+    pre));
+}
+async function write() {
+  const btn = document.getElementById("writeBtn"), msg = document.getElementById("writeMsg");
+  await saveNow();
+  if (current.photos.some(p => p.status === "waiting")) msg.textContent = "Some photos are still being looked at; Gemma will use the ones that are done. ";
+  btn.disabled = true; const t0 = Date.now();
+  const tick = setInterval(() => msg.textContent = "Gemma is writing on this computer… " + Math.round((Date.now() - t0) / 1000) + "s", 500);
+  try { current = await api("POST", `/api/people/${current.id}/write`); renderWords(); loadPeople(); }
+  catch (e) { banner(e.message); msg.textContent = ""; }
+  finally { clearInterval(tick); const b = document.getElementById("writeBtn"); if (b) b.disabled = false; }
+}
+
+async function remove() {
+  if (!confirm("Remove " + current.name + " from Marigold? This deletes Marigold's copies of their photos and your writing. Your original photos are not touched.")) return;
+  await api("DELETE", "/api/people/" + current.id);
+  current = null; await loadPeople();
+}
+
+document.getElementById("addForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const i = document.getElementById("newName");
+  try { const p = await api("POST", "/api/people", { name: i.value }); i.value = ""; current = null; await loadPeople(p.id); }
+  catch (err) { banner(err.message); }
+});
+
+loadStatus(); setInterval(loadStatus, 15000);
+loadPeople().catch(e => banner(e.message));
+</script>
+</body>
+</html>
