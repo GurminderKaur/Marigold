@@ -94,6 +94,7 @@ app.MapPost("/api/people/{id}/write", async (string id, CancellationToken ct) =>
     try { return await store.WriteAsync(id, ct) is { } p ? Results.Ok(p) : Results.NotFound(); }
     catch (HttpRequestException) { return Bad("Couldn't reach Ollama. Is the Ollama app running?"); }
     catch (InvalidOperationException ex) { return Bad(ex.Message); }
+    catch (JsonException) { return Bad("The model's answer wasn't readable. Click Write again."); }
 });
 app.MapPut("/api/people/{id}/remembrance", (string id, TextEdit e) =>
     Store.ValidId(id) && store.EditRemembrance(id, e.Title ?? "", e.Text ?? "") is { } p ? Results.Ok(p) : Results.NotFound());

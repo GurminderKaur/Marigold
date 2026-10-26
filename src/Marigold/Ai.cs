@@ -107,24 +107,39 @@ public sealed class Ai
 
     public async Task<(string Title, string Text, double Seconds)> WriteAsync(Person p, CancellationToken ct = default)
     {
-        var message = new JsonObject { ["role"] = "user", ["content"] = WritePrompt(p) };
-        var (json, secs) = await ChatAsync(message, WriteSchema, temperature: 0.4, ct);
-        var e = ParseObject(json);
-        var text = Str(e, "remembrance").Replace("\r\n", "\n").Trim();
-        if (text.Length == 0) throw new InvalidOperationException("The model returned an empty remembrance. Try again.");
-        return (Clip(Str(e, "title"), 80), Clip(text, 2000), secs);
+        // Small models occasionally stop mid-answer or break the JSON. Try once more with a different seed before giving up.
+        double total = 0;
+        for (int attempt = 1; ; attempt++)
+        {
+            var message = new JsonObject { ["role"] = "user", ["content"] = WritePrompt(p) };
+            string json = "";
+            try
+            {
+                (json, var secs) = await ChatAsync(message, WriteSchema, temperature: attempt == 1 ? 0.4 : 0.2, ct, seed: 7 + attempt);
+                total += secs;
+                var e = ParseObject(json);
+                var text = Str(e, "remembrance").Replace("\r\n", "\n").Trim();
+                if (text.Length < 40) throw new InvalidOperationException("The model returned an empty remembrance.");
+                return (Clip(Str(e, "title"), 80), Clip(text, 2000), total);
+            }
+            catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+            {
+                Console.Error.WriteLine($"Remembrance attempt {attempt} unusable ({ex.Message}). Model said: {(json.Length > 1500 ? json[..1500] + "…" : json)}");
+                if (attempt >= 2) throw new InvalidOperationException("The model's answer came back incomplete twice. Click Write again, or try a shorter set of memories.");
+            }
+        }
     }
 
     // ── Plumbing ───────────────────────────────────────────────────────────
 
-    private async Task<(string Json, double Seconds)> ChatAsync(JsonObject message, JsonObject schema, double temperature, CancellationToken ct)
+    private async Task<(string Json, double Seconds)> ChatAsync(JsonObject message, JsonObject schema, double temperature, CancellationToken ct, int seed = 7)
     {
         var body = new JsonObject
         {
             ["model"] = Model,
             ["stream"] = false,
             ["format"] = schema.DeepClone(),
-            ["options"] = new JsonObject { ["temperature"] = temperature, ["num_ctx"] = 4096, ["seed"] = 7 },
+            ["options"] = new JsonObject { ["temperature"] = temperature, ["num_ctx"] = 8192, ["num_predict"] = 900, ["seed"] = seed },
             ["messages"] = new JsonArray(message),
         };
         var sw = Stopwatch.StartNew();
@@ -133,7 +148,10 @@ public sealed class Ai
         var text = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode) throw new InvalidOperationException($"Ollama returned {(int)resp.StatusCode}: {(text.Length > 200 ? text[..200] : text)}");
         using var doc = JsonDocument.Parse(text);
-        return (doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "{}", sw.Elapsed.TotalSeconds);
+        var content2 = doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "{}";
+        if (doc.RootElement.TryGetProperty("done_reason", out var why) && why.GetString() == "length")
+            throw new InvalidOperationException("The model ran out of room before finishing its answer.");
+        return (content2, sw.Elapsed.TotalSeconds);
     }
 
     /// <summary>Lenient: finds the JSON object even if the model wraps it in chatter.</summary>

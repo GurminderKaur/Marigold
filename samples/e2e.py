@@ -15,6 +15,13 @@ person = json.load(open(os.path.join(here, "person.json"), encoding="utf-8"))
 files = sorted(os.path.join(photos, f) for f in os.listdir(photos) if f.lower().endswith((".jpg", ".jpeg", ".png")))
 results = {}
 
+def _report(t, e, tb):   # make failures readable in CI annotations
+    import traceback
+    msg = "".join(traceback.format_exception(t, e, tb))[-1500:]
+    if os.environ.get("GITHUB_ACTIONS"): print("::error title=Browser test failed::" + msg.replace("%", "%25").replace("\n", "%0A"))
+    sys.__excepthook__(t, e, tb)
+sys.excepthook = _report
+
 def step(msg): print(f"• {msg}", flush=True)
 
 with sync_playwright() as p:
@@ -45,7 +52,8 @@ with sync_playwright() as p:
 
     step("write the remembrance"); t0 = time.time()
     page.click("#writeBtn")
-    expect(page.locator("#rText")).to_be_visible(timeout=1_800_000)
+    page.wait_for_function("document.querySelector('#rText') || document.getElementById('banner').textContent", timeout=1_800_000, polling=2000)
+    assert not page.locator("#banner").inner_text(), "writing failed: " + page.locator("#banner").inner_text()
     results["writeSeconds"] = round(time.time() - t0, 1)
     text = page.locator("#rText").input_value()
     assert len(text.split()) > 40, "remembrance too short: " + text

@@ -9,11 +9,12 @@ import json, os, re, sys, time, urllib.parse, urllib.request
 out = sys.argv[1]
 os.makedirs(out, exist_ok=True)
 UA = {"User-Agent": "MarigoldTests/0.1 (https://github.com/GurminderKaur/Marigold)"}
+# Each slot tries its searches in order until one finds a public-domain photo.
 QUERIES = [
-    ("01-kitchen", "woman baking kitchen 1940s photograph"),
-    ("02-sewing", "treadle sewing machine woman photograph"),
-    ("03-bread", "pan de muerto"),
-    ("04-radio", "family listening radio 1940s"),
+    ("01-kitchen", ["woman kitchen baking Farm Security Administration", "woman rolling dough kitchen 1940s", "StateLibQld woman kitchen", "woman cooking kitchen 1940"]),
+    ("02-sewing", ["treadle sewing machine woman photograph", "woman sewing machine 1940s"]),
+    ("03-bread", ["pan de muerto", "Mexican sweet bread"]),
+    ("04-radio", ["family listening radio 1940s", "StateLibQld family radio", "woman listening to radio 1940s", "vintage radio receiver 1940s"]),
 ]
 
 def get(url):
@@ -28,7 +29,7 @@ def get(url):
 def strip(html): return re.sub(r"<[^>]+>", "", html or "").strip()
 
 credits, used = [], set()
-for name, q in QUERIES:
+def search(name, q):
     api = "https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode({
         "action": "query", "format": "json", "generator": "search", "gsrnamespace": 6, "gsrlimit": 25,
         "gsrsearch": q + " filetype:bitmap", "prop": "imageinfo", "iiprop": "url|mime|extmetadata", "iiurlwidth": 1024,
@@ -47,9 +48,15 @@ for name, q in QUERIES:
         used.add(p["title"])
         credits.append({"file": name + ext, "title": p["title"], "page": ii.get("descriptionurl"), "licence": lic, "author": strip(meta.get("Artist", {}).get("value", ""))[:120]})
         print(f"✓ {name}{ext}: {p['title']} ({lic})")
-        break
+        return True
+    return False
+
+for name, queries in QUERIES:
+    for q in queries:
+        if search(name, q): break
+        print(f"  (nothing public-domain for '{q}')"); time.sleep(1)
     else:
-        print(f"✗ no public-domain photo found for '{q}'")
+        print(f"✗ no photo for {name}")
     time.sleep(1)
 
 with open(os.path.join(out, "CREDITS.md"), "w", encoding="utf-8") as f:
