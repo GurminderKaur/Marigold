@@ -74,8 +74,10 @@ public sealed class Ai
             Write about them in the third person, the way a family member would read it aloud.
 
             STRICT RULE: use ONLY the facts below. Do not add any name, place, date, year, age, job, food, song, or event that is not written below.
-            If a detail isn't given, leave it out. It is better to be short than to invent. You may mention what is visible in the photos.
-            Weave in their favourite things as the offerings placed on the ofrenda for them.
+            If a detail isn't given, leave it out. It is better to be short than to invent.
+            Build it mainly from the family's memories: what they did, what they said, the habits people still talk about. Use most of them.
+            The photo notes were written by a computer: mention a photo at most once, briefly, as a photo ("in the photo at the sewing machine"). Never treat a photo's place or people as facts about their life.
+            End by naming a few of their favourite things as the offerings placed on the ofrenda for them.
             Answer format: the title on the first line (2 to 6 words, using their name, e.g. "For [name], who always kept the kettle on"),
             then a blank line, then the remembrance. Plain text only: no markdown, no headings, no notes before or after.
 
