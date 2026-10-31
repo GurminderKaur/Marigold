@@ -34,6 +34,9 @@ public static class SelfTest
             // ── Model output parsing ───────────────────────────────────────
             var e = Ai.ParseObject("Sure! {\"caption\":\"At the table\",\"description\":\"Two people.\",\"era\":\"1950s\"} hope that helps");
             Eq("parse: JSON found inside chatter", Ai.Str(e, "caption"), "At the table");
+            var st = Ai.SplitTitle("\n## **Title: For Rosa, who always had coffee on**\n\nRosa got up at four.\n\n\n\nShe sewed costumes.\n");
+            Eq("answer: title line split off (markdown stripped)", st.Title, "For Rosa, who always had coffee on");
+            Eq("answer: paragraphs kept", st.Text, "Rosa got up at four.\n\nShe sewed costumes.");
             True("prompt: facts are in the writer prompt", Ai.WritePrompt(rosa).Contains("pan de muerto") && Ai.WritePrompt(rosa).Contains("ONLY the facts"));
 
             // ── Photos are checked by content, not name ────────────────────

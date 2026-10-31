@@ -58,23 +58,12 @@ public sealed class Ai
     public async Task<(string Caption, string Description, string Era, double Seconds)> DescribeAsync(byte[] image, CancellationToken ct = default)
     {
         var message = new JsonObject { ["role"] = "user", ["content"] = PhotoPrompt, ["images"] = new JsonArray(Convert.ToBase64String(image)) };
-        var (json, secs) = await ChatAsync(message, PhotoSchema, temperature: 0, ct);
+        var (json, secs, _) = await ChatAsync(message, PhotoSchema, temperature: 0, ct);
         var e = ParseObject(json);
         return (Clip(Str(e, "caption"), 80), Clip(Str(e, "description"), 400), Clip(Str(e, "era"), 20), secs);
     }
 
     // ── Writing a remembrance ──────────────────────────────────────────────
-
-    private static readonly JsonObject WriteSchema = (JsonObject)JsonNode.Parse("""
-        {
-          "type": "object",
-          "properties": {
-            "title":        { "type": "string" },
-            "remembrance":  { "type": "string" }
-          },
-          "required": ["title", "remembrance"]
-        }
-        """)!;
 
     public static string WritePrompt(Person p)
     {
@@ -87,7 +76,8 @@ public sealed class Ai
             STRICT RULE: use ONLY the facts below. Do not add any name, place, date, year, age, job, food, song, or event that is not written below.
             If a detail isn't given, leave it out. It is better to be short than to invent. You may mention what is visible in the photos.
             Weave in their favourite things as the offerings placed on the ofrenda for them.
-            title: 2 to 6 words, using their name, e.g. "For [name], who always kept the kettle on".
+            Answer format: the title on the first line (2 to 6 words, using their name, e.g. "For [name], who always kept the kettle on"),
+            then a blank line, then the remembrance. Plain text only: no markdown, no headings, no notes before or after.
 
             FACTS (written by their family):
             """);
@@ -107,51 +97,58 @@ public sealed class Ai
 
     public async Task<(string Title, string Text, double Seconds)> WriteAsync(Person p, CancellationToken ct = default)
     {
-        // Small models occasionally stop mid-answer or break the JSON. Try once more with a different seed before giving up.
+        // Plain text, not a JSON schema: forcing JSON around a long piece of prose made Gemma 3 4B run on without
+        // closing the string. Small models can still stop early, so try once more with a different seed before giving up.
         double total = 0;
         for (int attempt = 1; ; attempt++)
         {
             var message = new JsonObject { ["role"] = "user", ["content"] = WritePrompt(p) };
-            string json = "";
-            try
-            {
-                (json, var secs) = await ChatAsync(message, WriteSchema, temperature: attempt == 1 ? 0.4 : 0.2, ct, seed: 7 + attempt);
-                total += secs;
-                var e = ParseObject(json);
-                var text = Str(e, "remembrance").Replace("\r\n", "\n").Trim();
-                if (text.Length < 40) throw new InvalidOperationException("The model returned an empty remembrance.");
-                return (Clip(Str(e, "title"), 80), Clip(text, 2000), total);
-            }
-            catch (Exception ex) when (ex is JsonException or InvalidOperationException)
-            {
-                Console.Error.WriteLine($"Remembrance attempt {attempt} unusable ({ex.Message}). Model said: {(json.Length > 1500 ? json[..1500] + "…" : json)}");
-                if (attempt >= 2) throw new InvalidOperationException("The model's answer came back incomplete twice. Click Write again, or try a shorter set of memories.");
-            }
+            var (raw, secs, cutOff) = await ChatAsync(message, null, temperature: attempt == 1 ? 0.4 : 0.2, ct, seed: 7 + attempt);
+            total += secs;
+            var (title, text) = SplitTitle(raw);
+            if (!cutOff && text.Length >= 40) return (Clip(title, 80), Clip(text, 2000), total);
+            Console.Error.WriteLine($"Remembrance attempt {attempt} unusable ({(cutOff ? "ran out of room" : "too short")}). Model said: {(raw.Length > 1500 ? raw[..1500] + "…" : raw)}");
+            if (attempt >= 2) throw new InvalidOperationException("The model's answer came back incomplete twice. Click Write again, or try a shorter set of memories.");
         }
+    }
+
+    /// <summary>First non-empty line is the title; the rest is the remembrance. Strips markdown a model may add anyway.</summary>
+    public static (string Title, string Text) SplitTitle(string raw)
+    {
+        var lines = raw.Replace("\r\n", "\n").Split('\n').Select(l => l.Trim()).ToList();
+        while (lines.Count > 0 && lines[0].Length == 0) lines.RemoveAt(0);
+        if (lines.Count == 0) return ("", "");
+        static string Clean(string l) => l.Trim().TrimStart('#').Trim().Trim('*').Trim().Trim('"', '“', '”').Trim();
+        var title = Clean(lines[0]);
+        if (title.StartsWith("Title:", StringComparison.OrdinalIgnoreCase)) title = title[6..].Trim();
+        var body = string.Join("\n", lines.Skip(1)).Trim();
+        if (body.Length == 0 || title.Length > 90) { body = string.Join("\n", lines).Trim(); title = ""; }   // no title line after all
+        // collapse 3+ newlines into paragraph breaks; drop "**" emphasis
+        body = System.Text.RegularExpressions.Regex.Replace(body.Replace("**", ""), "\n{3,}", "\n\n");
+        return (title, body);
     }
 
     // ── Plumbing ───────────────────────────────────────────────────────────
 
-    private async Task<(string Json, double Seconds)> ChatAsync(JsonObject message, JsonObject schema, double temperature, CancellationToken ct, int seed = 7)
+    private async Task<(string Content, double Seconds, bool CutOff)> ChatAsync(JsonObject message, JsonObject? schema, double temperature, CancellationToken ct, int seed = 7)
     {
         var body = new JsonObject
         {
             ["model"] = Model,
             ["stream"] = false,
-            ["format"] = schema.DeepClone(),
             ["options"] = new JsonObject { ["temperature"] = temperature, ["num_ctx"] = 8192, ["num_predict"] = 900, ["seed"] = seed },
             ["messages"] = new JsonArray(message),
         };
+        if (schema != null) body["format"] = schema.DeepClone();
         var sw = Stopwatch.StartNew();
         using var content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
         using var resp = await _http.PostAsync("/api/chat", content, ct);
         var text = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode) throw new InvalidOperationException($"Ollama returned {(int)resp.StatusCode}: {(text.Length > 200 ? text[..200] : text)}");
         using var doc = JsonDocument.Parse(text);
-        var content2 = doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "{}";
-        if (doc.RootElement.TryGetProperty("done_reason", out var why) && why.GetString() == "length")
-            throw new InvalidOperationException("The model ran out of room before finishing its answer.");
-        return (content2, sw.Elapsed.TotalSeconds);
+        var answer = doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
+        bool cutOff = doc.RootElement.TryGetProperty("done_reason", out var why) && why.GetString() == "length";
+        return (answer, sw.Elapsed.TotalSeconds, cutOff);
     }
 
     /// <summary>Lenient: finds the JSON object even if the model wraps it in chatter.</summary>
