@@ -1,0 +1,62 @@
+{
+  "model": "gemma3:4b",
+  "person": {
+    "name": "Rosa Delgado",
+    "years": "1931 \u2013 2019",
+    "relation": "my grandmother",
+    "offerings": [
+      "pan de muerto",
+      "caf\u00E9 de olla",
+      "boleros on the radio",
+      "a tin of buttons",
+      "orange marigolds"
+    ],
+    "language": "English"
+  },
+  "photos": [
+    {
+      "file": "01-kitchen.jpg",
+      "caption": "Rural homestead, weathered and simple.",
+      "description": "Two buildings stand side-by-side on stilts, with a corrugated iron roof and a raised veranda. The foreground is filled with tall, dry grasses, and a weathered water tank is visible on the left.",
+      "era": "1930s-1950s",
+      "seconds": 66.3,
+      "status": "Described",
+      "error": null
+    },
+    {
+      "file": "02-sewing.jpg",
+      "caption": "A woman sewing at home.",
+      "description": "A woman sits at a wooden sewing machine table, operating it with a hand crank. She is wearing a dark skirt and a light-colored blouse, and the room features a large mirror and a window with a view of trees.",
+      "era": "1930s-1950s",
+      "seconds": 66.3,
+      "status": "Described",
+      "error": null
+    },
+    {
+      "file": "03-bread.jpg",
+      "caption": "A sweet pastry on a plate.",
+      "description": "A round, golden pastry dusted with sugar sits on a white plate with a blue rim. The plate is placed on a yellow tablecloth, suggesting a table setting.",
+      "era": "1970s",
+      "seconds": 63.9,
+      "status": "Described",
+      "error": null
+    },
+    {
+      "file": "04-radio.jpg",
+      "caption": "A quiet family remembrance moment.",
+      "description": "Three people are seated in a living room, with one woman adjusting a radio. The room has dark wood paneling and a framed photograph on the wall, suggesting a domestic setting.",
+      "era": "1950s",
+      "seconds": 64.7,
+      "status": "Described",
+      "error": null
+    }
+  ],
+  "remembrance": {
+    "title": "For Rosa Delgado, who always kept the kettle on",
+    "text": "We\u2019ve set out a little of everything she loved. The pan de muerto is for her, of course, and a pot of caf\u00E9 de olla to always be ready. We remember her saying, \u201CCome in, there\u2019s coffee,\u201D and we want to offer that warmth to her now. The orange marigolds, bright and cheerful, just like she was.\n\nIn the photo at the sewing machine, you can see her, focused and happy, letting us choose the buttons from her biscuit tin. She spent so many Saturday afternoons listening to boleros on the radio, humming along while she cleaned. It\u2019s a quiet comfort to remember that.\n\nWe\u2019ve put out a tin of buttons, just like she always did, and we hope she hears us, enjoying the music and the simple pleasures she cherished.",
+    "ghosts": [],
+    "seconds": 46.6,
+    "words": 131
+  },
+  "prompt": "Write a short remembrance for an ofrenda, the altar families build for D\u00EDa de los Muertos to welcome back the people they love.\nLanguage: English. Length: 110 to 170 words, in 2 or 3 short paragraphs. Warm, simple and specific; not flowery, not sad for the sake of it.\nWrite about them in the third person, the way a family member would read it aloud.\n\nSTRICT RULE: use ONLY the facts below. Do not add any name, place, date, year, age, job, food, song, or event that is not written below.\nIf a detail isn\u0027t given, leave it out. It is better to be short than to invent.\nBuild it mainly from the family\u0027s memories: what they did, what they said, the habits people still talk about. Use most of them.\nThe photo notes were written by a computer: mention a photo at most once, briefly, as a photo (\u0022in the photo at the sewing machine\u0022). Never treat a photo\u0027s place or people as facts about their life.\nEnd by naming a few of their favourite things as the offerings placed on the ofrenda for them.\nAnswer format: the title on the first line (2 to 6 words, using their name, e.g. \u0022For [name], who always kept the kettle on\u0022),\nthen a blank line, then the remembrance. Plain text only: no markdown, no headings, no notes before or after.\n\nFACTS (written by their family):\nName: Rosa Delgado\nYears: 1931 \u2013 2019\nWho they were to the writer: my grandmother\nFavourite things, placed on the ofrenda: pan de muerto; caf\u00E9 de olla; boleros on the radio; a tin of buttons; orange marigolds\nMemories:\n\u0022\u0022\u0022\nShe ran a small bakery with my grandfather and got up at four every morning to light the ovens.\nShe always said \u0022Come in, there\u0027s coffee\u0022 before you were even through the door.\nShe sewed all of our Halloween costumes on her old sewing machine, and let us pick the buttons from her biscuit tin.\nOn Saturday afternoons she listened to boleros on the radio and hummed along while she cleaned.\n\u0022\u0022\u0022\nPhotos on the ofrenda:\n- Rural homestead, weathered and simple.: Two buildings stand side-by-side on stilts, with a corrugated iron roof and a raised veranda. The foreground is filled with tall, dry grasses, and a weathered water tank is visible on the left.\n- A woman sewing at home.: A woman sits at a wooden sewing machine table, operating it with a hand crank. She is wearing a dark skirt and a light-colored blouse, and the room features a large mirror and a window with a view of trees.\n- A sweet pastry on a plate.: A round, golden pastry dusted with sugar sits on a white plate with a blue rim. The plate is placed on a yellow tablecloth, suggesting a table setting.\n- A quiet family remembrance moment.: Three people are seated in a living room, with one woman adjusting a radio. The room has dark wood paneling and a framed photograph on the wall, suggesting a domestic setting.\n"
+}
