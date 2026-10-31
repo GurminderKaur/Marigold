@@ -127,6 +127,7 @@ public sealed class Ai
         if (body.Length == 0 || title.Length > 90) { body = string.Join("\n", lines).Trim(); title = ""; }   // no title line after all
         // collapse 3+ newlines into paragraph breaks; drop "**" emphasis
         body = System.Text.RegularExpressions.Regex.Replace(body.Replace("**", ""), "\n{3,}", "\n\n");
+        body = System.Text.RegularExpressions.Regex.Replace(body, @"(?<![\w*])\*(\S[^*\n]*?)\*(?![\w*])", "$1");   // *italics* → italics
         return (title, body);
     }
 

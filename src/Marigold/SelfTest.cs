@@ -36,6 +36,7 @@ public static class SelfTest
             Eq("parse: JSON found inside chatter", Ai.Str(e, "caption"), "At the table");
             var st = Ai.SplitTitle("\n## **Title: For Rosa, who always had coffee on**\n\nRosa got up at four.\n\n\n\nShe sewed costumes.\n");
             Eq("answer: title line split off (markdown stripped)", st.Title, "For Rosa, who always had coffee on");
+            Eq("answer: markdown italics removed", Ai.SplitTitle("For Rosa\n\nThe *pan de muerto* is for her, 2 * 3 stays.").Text, "The pan de muerto is for her, 2 * 3 stays.");
             Eq("answer: paragraphs kept", st.Text, "Rosa got up at four.\n\nShe sewed costumes.");
             True("prompt: facts are in the writer prompt", Ai.WritePrompt(rosa).Contains("pan de muerto") && Ai.WritePrompt(rosa).Contains("ONLY the facts"));
 

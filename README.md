@@ -6,15 +6,19 @@
 
 Add a few old photos and write down what you remember: what they always said, what they cooked, the song they hummed. A local open-weight model (**Gemma 3 4B via Ollama**) looks at each photo and writes a short remembrance **using only what you gave it**. Marigold then builds an ofrenda page with their photos, your words and their favourite things, saved as **one HTML file** you can keep, print or share.
 
-![The ofrenda Marigold builds](docs/ofrenda.png)
+![The ofrenda Marigold builds, from a real Gemma 3 run on public-domain photos](docs/ofrenda.jpg)
 
 ## The ghost check 👻
 
 A language model writing about someone you loved will sometimes "remember" things that never happened: a town she never lived in, a year that's wrong, a name nobody had. In a remembrance, that's the worst kind of mistake.
 
-So Marigold doesn't just ask the model to stick to the facts. It **checks**. Every name, place, number, month and weekday in the text is compared against everything you wrote and what the model saw in the photos. Anything that came from nowhere is flagged as a *ghost* and highlighted:
+So Marigold doesn't just ask the model to stick to the facts. It **checks**. Every name, place, number, month and weekday in the text is compared against everything you wrote and what the model saw in the photos. Anything that came from nowhere is flagged as a *ghost* and highlighted. Here's what a catch looks like (from a test where an invented city is planted on purpose):
 
-![The ghost check catching an invented detail](docs/app-remembrance.png)
+![The ghost check catching an invented detail](docs/ghost-caught.jpg)
+
+And here's Gemma 3's real output in CI, built from the family's memories, with nothing invented:
+
+![A real remembrance from Gemma 3 with a clean ghost check](docs/app-remembrance.jpg)
 
 If it's true, add it to your memories and the warning goes away. If it isn't, edit it out. The check is plain string matching, not another model guessing, so it's predictable and you can read exactly how it works in [`Ghosts.cs`](src/Marigold/Ghosts.cs).
 
@@ -47,8 +51,22 @@ Remembrances can be written in English, Español, Français, Português, ਪੰ�
 
 ## How it's tested
 
-- **30 built-in self-tests** (`marigold selftest`) cover the ghost check (invented cities, years, weekdays, people; no false alarms on sentence starts, "May she rest", family words like *Abuela*), photo validation by file content, storage surviving a restart, and the ofrenda page (escaped text, embedded photos, no scripts or links). They run on Windows, macOS and Linux on every push.
+- **33 built-in self-tests** (`marigold selftest`) cover the ghost check (invented cities, years, weekdays, people; no false alarms on sentence starts, "May she rest", family words like *Abuela*), photo validation by file content, storage surviving a restart, and the ofrenda page (escaped text, embedded photos, no scripts or links). They run on Windows, macOS and Linux on every push.
 - **The real model, in a real browser:** CI installs Ollama and `gemma3:4b`, downloads a few **public-domain photos** from Wikimedia Commons (licence checked, credits recorded), and a Playwright test uses the app like a person would: add someone, upload photos, wait for Gemma, write the remembrance, check the ghost check, open and download the ofrenda. The memories in [`samples/person.json`](samples/person.json) are fictional.
+
+### Latest real-model run (`gemma3:4b`, CPU-only GitHub runner, no GPU)
+
+| | Result |
+|---|---|
+| Photos described (4 public-domain archive photos) | 4 / 4, no names guessed |
+| Era guesses vs. the archive's dates | sewing machine 1944 → "1930s–1950s" ✅, radio c. 1942 → "1950s" (close), homestead 1922 → "1930s–1950s" (a bit late) |
+| Time per photo | ~67 s |
+| Writing the remembrance | ~42 s, 115–135 words |
+| Ghost check on the real output | **0 invented details** (browser run and command-line run) |
+
+**What I changed because of the real model:** the remembrance was first requested as JSON; Gemma 3 4B twice ran to its length limit without closing the string. It's now plain text (title line, then the remembrance), and a cut-off answer is detected and retried. The first passing run also leaned on the photo descriptions instead of the memories, so the prompt now says to build it mainly from the family's memories and mention a photo at most once.
+
+Sample photo credits: [`samples/photos/CREDITS.md`](samples/photos/CREDITS.md).
 
 ## Built with
 
